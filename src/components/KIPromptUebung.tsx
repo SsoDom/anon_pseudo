@@ -62,4 +62,153 @@ export default function KIPromptUebung() {
 
   const bewertungstext = {
     schlecht: "Dein Prompt könnte verbessert werden. Prüfe die Kriterien und versuche es erneut.",
-    mittel: "Guter Ansatz! Dein Prompt erfüllt einige wichtige Kriterien, könnte aber noch optim
+    mittel: "Guter Ansatz! Dein Prompt erfüllt einige wichtige Kriterien, könnte aber noch optimiert werden.",
+    gut: "Sehr gut! Dein Prompt erfüllt die meisten relevanten Kriterien für eine qualitativ hochwertige KI-Antwort."
+  };
+
+  const bewertePrompt = () => {
+    if (!userPrompt.trim()) {
+      setFeedback({
+        text: "Bitte gib zuerst einen Prompt ein.",
+        level: "schlecht",
+        erfuellteKriterien: []
+      });
+      return;
+    }
+
+    const erfuellteKriterien = [];
+    
+    // Prüfung auf Rolle
+    if (/steuerexperte|steuerberater|steuerfachmann|als\s(\w+\s)?experte/i.test(userPrompt)) {
+      erfuellteKriterien.push(1);
+    }
+    
+    // Prüfung auf präzise Aufgabenstellung
+    if (/erstelle|berechne|erläutere|erkläre|analysiere|wie\s(wird|ist)|welche\s(steuer|regelung)/i.test(userPrompt)) {
+      erfuellteKriterien.push(2);
+    }
+    
+    // Prüfung auf Zahlen und Fakten
+    if ((new RegExp(steuerFaelle[selectedCase].beschreibung.match(/\d[\d.,]*\s*€|\d+\s*%|\d{4}/g)?.join('|') || '', 'i')).test(userPrompt)) {
+      erfuellteKriterien.push(3);
+    }
+    
+    // Prüfung auf strukturierte Antwort
+    if (/strukturiere|gliedere|liste auf|folgende punkte|teile auf/i.test(userPrompt)) {
+      erfuellteKriterien.push(4);
+    }
+    
+    // Prüfung auf aktuelle Rechtslage
+    if (/aktuelle\s(rechtslage|gesetzgebung|gesetze)|gültige\svorschriften|bfh-urteil|bmf-schreiben|ustg|estg|ao/i.test(userPrompt)) {
+      erfuellteKriterien.push(5);
+    }
+    
+    let level;
+    if (erfuellteKriterien.length <= 1) {
+      level = "schlecht";
+    } else if (erfuellteKriterien.length <= 3) {
+      level = "mittel";
+    } else {
+      level = "gut";
+    }
+    
+    setFeedback({
+      text: bewertungstext[level as keyof typeof bewertungstext],
+      level,
+      erfuellteKriterien
+    });
+  };
+
+  return (
+    <div className="flex flex-col p-6 bg-gray-50 rounded-lg shadow-md max-w-6xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-800 mb-4 text-center">KI-Prompt-Übung für Steuerfachangestellte</h1>
+      
+      <div className="mb-6">
+        <label className="block text-gray-700 font-medium mb-2">Wähle einen Steuerfall:</label>
+        <select 
+          className="w-full p-3 border border-gray-300 rounded-md bg-white text-lg" 
+          value={selectedCase} 
+          onChange={(e) => {
+            setSelectedCase(parseInt(e.target.value));
+            setUserPrompt('');
+            setFeedback(null);
+            setShowSolution(false);
+          }}
+        >
+          {steuerFaelle.map((fall, index) => (
+            <option key={fall.id} value={index}>{fall.titel}</option>
+          ))}
+        </select>
+      </div>
+      
+      <div className="bg-white p-6 rounded-md border border-gray-200 mb-6">
+        <h2 className="font-bold text-xl mb-4">📋 Fallbeschreibung:</h2>
+        <p className="text-gray-700 text-lg leading-relaxed">{steuerFaelle[selectedCase].beschreibung}</p>
+      </div>
+      
+      <div className="mb-6">
+        <label className="block text-gray-700 font-medium mb-2 text-lg">
+          Schreibe deinen KI-Prompt für diesen Fall:
+        </label>
+        <textarea 
+          className="w-full p-4 border border-gray-300 rounded-md h-48 text-lg"
+          placeholder="Formuliere hier deinen Prompt..."
+          value={userPrompt}
+          onChange={(e) => setUserPrompt(e.target.value)}
+        />
+      </div>
+      
+      <div className="flex flex-col gap-4 mb-6">
+        <button 
+          className="bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition text-lg font-semibold"
+          onClick={bewertePrompt}
+        >
+          Prompt bewerten
+        </button>
+        
+        <button 
+          className="bg-gray-200 text-gray-800 py-3 px-6 rounded-md hover:bg-gray-300 transition text-lg"
+          onClick={() => setShowSolution(!showSolution)}
+        >
+          {showSolution ? "Musterlösung ausblenden" : "Musterlösung anzeigen"}
+        </button>
+      </div>
+      
+      {feedback && (
+        <div className={`p-6 rounded-md mb-6 border-2 ${
+          feedback.level === "schlecht" ? "bg-red-50 border-red-200" :
+          feedback.level === "mittel" ? "bg-yellow-50 border-yellow-200" :
+          "bg-green-50 border-green-200"
+        }`}>
+          <h3 className="font-bold mb-3 text-xl">Feedback zu deinem Prompt:</h3>
+          <p className="mb-4 text-lg">{feedback.text}</p>
+          
+          <h4 className="font-medium mb-3 text-lg">Bewertungskriterien:</h4>
+          <ul className="space-y-3">
+            {bewertungskriterien.map(k => (
+              <li key={k.id} className="flex items-start gap-3">
+                {feedback.erfuellteKriterien.includes(k.id) ? 
+                  <Check className="text-green-600 mt-1 flex-shrink-0" size={20} /> : 
+                  <X className="text-red-600 mt-1 flex-shrink-0" size={20} />
+                }
+                <div>
+                  <span className="font-medium text-lg">{k.kriterium}</span>
+                  <p className="text-sm text-gray-600 mt-1">{k.erklaerung}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {showSolution && (
+        <div className="bg-green-50 p-6 border-2 border-green-200 rounded-md">
+          <h3 className="font-bold mb-4 text-xl text-green-800">💡 Musterlösung:</h3>
+          <div className="bg-white p-4 rounded border font-mono text-sm leading-relaxed">
+            {steuerFaelle[selectedCase].musterPrompt}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
